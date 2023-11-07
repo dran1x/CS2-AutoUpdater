@@ -14,7 +14,7 @@
   - [Metamod:Source](https://www.sourcemm.net/downloads.php/?branch=master) (Dev Build)
   - [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp) (Commit [12a654f](https://github.com/roflmuffin/CounterStrikeSharp/actions/runs/6782595525) or higher)
 
-  Download the latest release of CS2-AutoUpdater from the [GitHub Release Page](https://github.com/dran1x/CS2-AutoUpdater/release).
+  Download the latest release of CS2-AutoUpdater from the [GitHub Release Page](https://github.com/dran1x/CS2-AutoUpdater/releases).
 
   Extract the contents of the archive into your `counterstrikesharp/plugins` folder.
 
