@@ -1,5 +1,11 @@
 # CS2-AutoUpdater
  The Auto Updater plugin automates the update process for your Counter-Strike 2 (CS2) server.
+ > [!IMPORTANT]  
+ > It is required for the server to have hibernation disabled: `sv_hibernate_when_empty` set to `false`.
+
+# Features
+ - [x] Automatically checks the current game version of Counter-Strike 2 by querying Steam's API.
+ - [x] Notifies players about the upcoming server restart
 
 # Installation
 
