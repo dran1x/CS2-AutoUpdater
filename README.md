@@ -6,7 +6,7 @@
 # Features
  - [x] Automatically checks the current game version of Counter-Strike 2 by querying Steam's API.
  - [x] Notifies players about the upcoming server restart.
- - [ ] Plugin translations.
+ - [ ] Translations. (Waiting for CounterStrikeSharp support)
 
 # Installation
 
@@ -36,7 +36,7 @@
    "UpdateCheckInterval": 300,
    "RestartDelay": 120,
    "ShutdownDelay": 2,
-   "InstantRestartWhenEmpty": true,
+   "MinimumPlayersBeforeInstantRestart": 1,
    "ChatTag": "\u0004[AutoUpdater]\u0001"
  }
  ```

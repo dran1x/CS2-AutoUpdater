@@ -7,7 +7,7 @@
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="CounterStrikeSharp.API">
-      <HintPath>..\..\..\Documents\CounterStrikeSharp\CounterStrikeSharp.API.dll</HintPath>
+      <HintPath>..\..\..\..\..\..\..\Data\CounterStrikeSharp\CounterStrikeSharp.API.dll</HintPath>
     </Reference>
   </ItemGroup>
 </Project>

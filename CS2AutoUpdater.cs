@@ -3,84 +3,155 @@ using System.Text.RegularExpressions;
 using CounterStrikeSharp.API;
 using CounterStrikeSharp.API.Core;
 using CounterStrikeSharp.API.Core.Attributes;
+using CounterStrikeSharp.API.Core.Attributes.Registration;
 using CounterStrikeSharp.API.Modules.Timers;
-using CounterStrikeSharp.API.Modules.Utils;
 
 namespace CS2AutoUpdater
 {
-    [MinimumApiVersion(5)]
+    [MinimumApiVersion(14)]
     public partial class CS2AutoUpdater : BasePlugin
     {
         public override string ModuleName => "CS2AutoUpdater";
         public override string ModuleAuthor => "DRANIX";
         public override string ModuleDescription => "Auto Updater for Counter-Strike 2.";
-        public override string ModuleVersion => "1.0.0";
-        private static readonly string steamAPIEndpoint = "http://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={0}&format=json";
-        private CounterStrikeSharp.API.Modules.Timers.Timer updateCheck = null!;
-        private static Config config = null!;
+        public override string ModuleVersion => "1.0.1";
+        private const string steamApiEndpoint = "http://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={0}&format=json";
+        private static CounterStrikeSharp.API.Modules.Timers.Timer updateCheck = null!;
+        private static readonly bool[] playersNotified = new bool[Server.MaxPlayers];
+        private static float updateFoundTime;
+        private static bool updateAvailable;
         private static int requiredVersion;
+        private static bool isMapLoading;
 
         public override void Load(bool hotReload)
         {
-            config = LoadConfig();
-            updateCheck = AddTimer((float)config.UpdateCheckInterval, () => CheckUpdate(), TimerFlags.REPEAT);
+            Configuration.LoadConfig(this.ModuleDirectory);
+            
+            RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
+            
+            this.RegisterListener<Listeners.OnGameServerSteamAPIActivated>(OnGameServerSteamAPIActivated);
+            this.RegisterListener<Listeners.OnMapStart>(OnMapStart);
+            this.RegisterListener<Listeners.OnMapEnd>(OnMapEnd);
+            this.RegisterListener<Listeners.OnClientConnected>(playerSlot => { playersNotified[playerSlot + 1] = false; });
+            this.RegisterListener<Listeners.OnClientDisconnectPost>(playerSlot => { playersNotified[playerSlot + 1] = false; });
+            
+            updateCheck = AddTimer((float)Configuration.config.UpdateCheckInterval, CheckForServerUpdate, TimerFlags.REPEAT);
+        }
+        
+        [GameEventHandler]
+        private static HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
+        {
+            if (!updateAvailable) return HookResult.Continue;
+            
+            CCSPlayerController player = @event.Userid;
+
+            if (!player.IsValid || player.IsBot) return HookResult.Continue;
+            if (playersNotified[player.EntityIndex!.Value.Value]) return HookResult.Continue;
+            
+            NotifyPlayer(player);
+
+            return HookResult.Continue;
         }
 
-        private async void CheckUpdate()
+        private async void CheckForServerUpdate()
         {
-            try
-            {
-                string steamINFPatchVersion = GetSteamINFPatchVersion();
+            if (!await IsUpdateAvailable()) return;
+            
+            updateFoundTime = Server.CurrentTime;
 
-                if (string.IsNullOrEmpty(steamINFPatchVersion))
+            if (!isMapLoading)
+            {
+                List<CCSPlayerController> players = Utilities.GetPlayers().Where(player => !player.IsBot).ToList();
+                
+                if (players.Count <= Configuration.config.MinimumPlayersBeforeInstantRestart)
                 {
-                    Console.WriteLine("[AutoUpdater] Unable to get the current patch version of Counter-Strike 2. The server will not be checked for updates.");
+                    PrepareServerShutdown();
                     return;
                 }
+                
+                foreach (var player in players) NotifyPlayer(player);
+            }
 
+            AddTimer((float)Configuration.config.RestartDelay, PrepareServerShutdown);
+
+            updateAvailable = true;
+
+            updateCheck?.Kill();
+        }
+
+        private static void NotifyPlayer(CCSPlayerController player)
+        {
+            int remainingTime = Configuration.config.RestartDelay - (int)(Server.CurrentTime - updateFoundTime);
+
+            if (remainingTime < 0) remainingTime = 1;
+    
+            string timeToRestart = remainingTime >= 60 ? $"{remainingTime / 60} minute{(remainingTime >= 120 ? "s" : "")}" : $"{remainingTime} second{(remainingTime > 1 ? "s" : "")}";
+            player.PrintToChat($" {Configuration.config.ChatTag} New Counter-Strike 2 update released (Build: {requiredVersion}) the server will restart in {timeToRestart}");
+    
+            playersNotified[player.EntityIndex!.Value.Value] = true;
+        }
+
+        private void OnGameServerSteamAPIActivated()
+        {
+            ConsoleLog("Steam API activated. Server will be checked for updates.");
+        }
+        
+        private static void OnMapStart(string mapName)
+        {
+            isMapLoading = false;
+        }
+        
+        private static void OnMapEnd()
+        {
+            isMapLoading = true;
+        }
+
+        private async Task<bool> IsUpdateAvailable()
+        {
+            string steamInfPatchVersion = GetSteamInfPatchVersion();
+
+            if (string.IsNullOrEmpty(steamInfPatchVersion))
+            {
+                ConsoleLog("Unable to get the current patch version of Counter-Strike 2. The server will not be checked for updates.", ConsoleColor.Red);
+                Server.ExecuteCommand($"css_plugins stop {this.ModuleName}");
+                return false;
+            }
+
+            try
+            {
                 using HttpClient httpClient = new HttpClient();
-                HttpResponseMessage response = await httpClient.GetAsync(string.Format(steamAPIEndpoint, steamINFPatchVersion));
+                HttpResponseMessage response = await httpClient.GetAsync(string.Format(steamApiEndpoint, steamInfPatchVersion));
 
                 if (response.IsSuccessStatusCode)
                 {
                     string responseString = await response.Content.ReadAsStringAsync();
-                    UpToDateCheckResponse upToDateObject = JsonSerializer.Deserialize<UpToDateCheckResponse>(responseString)!;
+                    var upToDateObject = JsonSerializer.Deserialize<UpToDateCheckResponse>(responseString)!;
 
-                    if (upToDateObject.Response.Success && !upToDateObject.Response.UpToDate)
+                    if (upToDateObject.Response is { Success: true, UpToDate: false })
                     {
-                        int totalSeconds = (int)config.RestartDelay;
-                        string timeToRestart = totalSeconds >= 60 ? $"{totalSeconds / 60} minute{(totalSeconds >= 120 ? "s" : "")}" : $"{totalSeconds} second{(totalSeconds > 1 ? "s" : "")}";
-
-                        List<CCSPlayerController> players = Utilities.GetPlayers().Where(player => !player.IsBot).ToList();
-
-                        if (config.InstantRestartWhenEmpty && players.Count < 1) { QuitServer(); }
-
                         requiredVersion = upToDateObject.Response.RequiredVersion!;
-
-                        foreach (var player in players)
-                        {
-                            player.PrintToChat($" {config.ChatTag} New Counter-Strike 2 update released (Build: {requiredVersion}) the server will restart in {timeToRestart}");
-                        }
-
-                        AddTimer((float)config.RestartDelay, () => ShutdownServer(), TimerFlags.REPEAT);
-
-                        updateCheck?.Kill();
+                        ConsoleLog($"New Counter-Strike 2 update released (Build: {requiredVersion})");
+                        return true;
                     }
                 }
                 else
                 {
-                    Console.WriteLine($"[AutoUpdater] HTTP request failed with status code: {response.StatusCode}");
+                    ConsoleLog($"HTTP request failed with status code: {response.StatusCode}", ConsoleColor.Red);
                 }
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"[AutoUpdater] An error occurred: {ex.Message}");
+                ConsoleLog($"An error occurred: {ex.Message}", ConsoleColor.Red);
             }
+
+            return false;
         }
 
-        private void ShutdownServer()
+        private void PrepareServerShutdown()
         {
-            foreach (var player in Utilities.GetPlayers())
+            List<CCSPlayerController> players = Utilities.GetPlayers().Where(player => !player.IsBot).ToList();
+            
+            foreach (var player in players)
             {
                 switch (player.Connected)
                 {
@@ -92,10 +163,10 @@ namespace CS2AutoUpdater
                 }
             }
 
-            AddTimer((float)config.ShutdownDelay, () => { QuitServer(); });
+            AddTimer((float)Configuration.config.ShutdownDelay, ShutdownServer);
         }
 
-        private static string GetSteamINFPatchVersion()
+        private string GetSteamInfPatchVersion()
         {
             string steamInfPath = Path.Combine(Server.GameDirectory, "csgo", "steam.inf");
 
@@ -105,58 +176,35 @@ namespace CS2AutoUpdater
                 {
                     Match match = PatchVersion().Match(File.ReadAllText(steamInfPath));
 
-                    if (match.Success)
-                    {
-                        return match.Groups[1].Value;
-                    }
+                    if (match.Success) return match.Groups[1].Value;
                     else
                     {
-                        Console.WriteLine("[AutoUpdater] The 'PatchVersion' key could not be located in the steam.inf file.");
+                        ConsoleLog("The 'PatchVersion' key could not be located in the steam.inf file.", ConsoleColor.Red);
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"[AutoUpdater] An error occurred while reading the 'steam.inf' file: {ex.Message}");
+                    ConsoleLog($"An error occurred while reading the 'steam.inf' file: {ex.Message}", ConsoleColor.Red);
                 }
             }
             else
             {
-                Console.WriteLine($"[AutoUpdater] The 'steam.inf' file was not found in the root directory of Counter-Strike 2. Path: \"{steamInfPath}\"");
+                ConsoleLog($"The 'steam.inf' file was not found in the root directory of Counter-Strike 2. Path: \"{steamInfPath}\"", ConsoleColor.Red);
             }
 
             return string.Empty;
         }
 
-        private Config LoadConfig()
+        private void ConsoleLog(string message, ConsoleColor color = ConsoleColor.Green)
         {
-            string configPath = Path.Combine(ModuleDirectory, "autoupdater.json");
-
-            if (!File.Exists(configPath))
-            {
-                Config config = new Config
-                {
-                    UpdateCheckInterval = 300,
-                    RestartDelay = 120,
-                    ShutdownDelay = 5,
-                    InstantRestartWhenEmpty = true,
-                    ChatTag = $"{ChatColors.Green}[AutoUpdater]{ChatColors.White}"
-                };
-
-                string configContent = JsonSerializer.Serialize(config, new JsonSerializerOptions
-                {
-                    WriteIndented = true
-                });
-
-                File.WriteAllText(configPath, configContent);
-                Console.WriteLine($"[AutoUpdater] Configuration file \"{configPath}\" created successfully.");
-            }
-
-            return JsonSerializer.Deserialize<Config>(File.ReadAllText(configPath))!;
+            Console.ForegroundColor = color;
+            Console.WriteLine($"[{this.ModuleName}] {message}");
+            Console.ResetColor();
         }
-
-        private static void QuitServer()
+        
+        private void ShutdownServer()
         {
-            Console.WriteLine($"[AutoUpdater] Restarting the server due to the new game update. (Build: {requiredVersion})");
+            ConsoleLog($"Restarting the server due to the new game update. (Build: {requiredVersion})");
             Server.ExecuteCommand("quit");
         }
 
