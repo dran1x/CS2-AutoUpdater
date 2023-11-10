@@ -16,7 +16,7 @@ namespace CS2AutoUpdater
         public override string ModuleName => "AutoUpdater";
         public override string ModuleAuthor => "DRANIX";
         public override string ModuleDescription => "Auto Updater for Counter-Strike 2.";
-        public override string ModuleVersion => "1.0.2";
+        public override string ModuleVersion => "1.0.3";
         private const string steamApiEndpoint = "http://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={steamInfPatchVersion}";
         private static CounterStrikeSharp.API.Modules.Timers.Timer updateCheck = null!;
         private static readonly bool[] playersNotified = new bool[Server.MaxPlayers];
@@ -97,7 +97,7 @@ namespace CS2AutoUpdater
             if (remainingTime < 0) remainingTime = 1;
     
             string timeToRestart = remainingTime >= 60 ? $"{remainingTime / 60} minute{(remainingTime >= 120 ? "s" : "")}" : $"{remainingTime} second{(remainingTime > 1 ? "s" : "")}";
-            player.PrintToChat($" {Configuration.config.ChatTag} New Counter-Strike 2 update released (Build: {requiredVersion}) the server will restart in {timeToRestart}");
+            player.PrintToChat($" {Configuration.config.ChatTag} New Counter-Strike 2 update released (Version: {requiredVersion}) the server will restart in {timeToRestart}");
     
             playersNotified[player.EntityIndex!.Value.Value] = true;
         }
@@ -140,7 +140,7 @@ namespace CS2AutoUpdater
                     if (upToDateObject.Response is { Success: true, UpToDate: false })
                     {
                         requiredVersion = upToDateObject.Response.RequiredVersion!;
-                        ConsoleLog($"New Counter-Strike 2 update released (Build: {requiredVersion})");
+                        ConsoleLog($"New Counter-Strike 2 update released (Version: {requiredVersion}, Current: {steamInfPatchVersion})");
                         return true;
                     }
                 }
@@ -168,7 +168,7 @@ namespace CS2AutoUpdater
                     case PlayerConnectedState.PlayerConnected:
                     case PlayerConnectedState.PlayerConnecting:
                     case PlayerConnectedState.PlayerReconnecting:
-                        Server.ExecuteCommand($"kickid {player.UserId} Due to the game update (Build: {requiredVersion}), the server is now restarting.");
+                        Server.ExecuteCommand($"kickid {player.UserId} Due to the game update (Version: {requiredVersion}), the server is now restarting.");
                         break;
                 }
             }
@@ -208,17 +208,32 @@ namespace CS2AutoUpdater
         {
             return Utilities.GetPlayers().Where(player => player is { IsValid: true, IsBot: false, IsHLTV: false }).ToList();
         }
-
+        
         private void ConsoleLog(string message, ConsoleColor color = ConsoleColor.Green)
         {
+            string path = Path.Combine(this.ModuleDirectory, "logs.txt");
+            string log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{this.ModuleName}] {message}";
+
             Console.ForegroundColor = color;
-            Console.WriteLine($"[{this.ModuleName}] {message}");
+            Console.WriteLine(log);
             Console.ResetColor();
+
+            try
+            {
+                using StreamWriter file = new StreamWriter(path, true);
+                file.WriteLine(log);
+            }
+            catch (Exception ex)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine($"[{this.ModuleName}]Error writing to log file: {ex.Message}");
+                Console.ResetColor();
+            }
         }
         
         private void ShutdownServer()
         {
-            ConsoleLog($"Restarting the server due to the new game update. (Build: {requiredVersion})");
+            ConsoleLog($"Restarting the server due to the new game update. (Version: {requiredVersion})");
             Server.ExecuteCommand("quit");
         }
 
