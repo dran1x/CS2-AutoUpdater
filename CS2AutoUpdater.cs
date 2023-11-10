@@ -13,7 +13,7 @@ namespace CS2AutoUpdater
     [MinimumApiVersion(14)]
     public partial class CS2AutoUpdater : BasePlugin
     {
-        public override string ModuleName => "CS2AutoUpdater";
+        public override string ModuleName => "AutoUpdater";
         public override string ModuleAuthor => "DRANIX";
         public override string ModuleDescription => "Auto Updater for Counter-Strike 2.";
         public override string ModuleVersion => "1.0.2";
