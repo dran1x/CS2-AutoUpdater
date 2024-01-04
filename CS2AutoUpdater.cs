@@ -19,7 +19,7 @@ namespace CS2AutoUpdater
         public override string ModuleVersion => "1.0.3";
         private const string steamApiEndpoint = "http://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={steamInfPatchVersion}";
         private static CounterStrikeSharp.API.Modules.Timers.Timer updateCheck = null!;
-        private static readonly bool[] playersNotified = new bool[Server.MaxPlayers];
+        private static readonly bool[] playersNotified = new bool[65];
         private static float updateFoundTime;
         private static bool updateAvailable;
         private static int requiredVersion;
@@ -52,7 +52,7 @@ namespace CS2AutoUpdater
             CCSPlayerController player = @event.Userid;
             
             if (!player.IsValid || player.IsBot || player.TeamNum < (byte)CsTeam.Spectator) return HookResult.Continue;
-            if (playersNotified[player.EntityIndex!.Value.Value]) return HookResult.Continue;
+            if (playersNotified[player.Index]) return HookResult.Continue;
             
             NotifyPlayer(player);
             
@@ -99,7 +99,7 @@ namespace CS2AutoUpdater
             string timeToRestart = remainingTime >= 60 ? $"{remainingTime / 60} minute{(remainingTime >= 120 ? "s" : "")}" : $"{remainingTime} second{(remainingTime > 1 ? "s" : "")}";
             player.PrintToChat($" {Configuration.config.ChatTag} New Counter-Strike 2 update released (Version: {requiredVersion}) the server will restart in {timeToRestart}");
     
-            playersNotified[player.EntityIndex!.Value.Value] = true;
+            playersNotified[player.Index] = true;
         }
 
         private void OnGameServerSteamAPIActivated()
