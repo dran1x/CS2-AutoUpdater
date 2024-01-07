@@ -17,31 +17,31 @@ public partial class CS2AutoUpdater : BasePlugin
     public override string ModuleAuthor => "DRANIX";
     public override string ModuleDescription => "Auto Updater for Counter-Strike 2.";
     public override string ModuleVersion => "1.0.4";
-    private const string steamApiEndpoint = "http://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={steamInfPatchVersion}";
-    private static CounterStrikeSharp.API.Modules.Timers.Timer? updateCheck;
-    private static readonly bool[] playersNotified = new bool[65];
-    private static float updateFoundTime;
-    private static bool updateAvailable;
-    private static int requiredVersion;
-    private static bool isMapLoading;
-
+    private const string SteamApiEndpoint = "http://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={steamInfPatchVersion}";
+    private static CounterStrikeSharp.API.Modules.Timers.Timer? _updateCheck;
+    private static readonly bool[] PlayersNotified = new bool[65];
+    private static float _updateFoundTime;
+    private static bool _updateAvailable;
+    private static int _requiredVersion;
+    private static bool _isMapLoading;
+    
     public override void Load(bool hotReload)
     {
         Configuration.LoadConfig(ModuleDirectory);
-            
+        
         RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
-            
-        ConVar sv_hibernate_when_empty = ConVar.Find("sv_hibernate_when_empty")!;
-            
+        
         RegisterListener<Listeners.OnGameServerSteamAPIActivated>(OnGameServerSteamAPIActivated);
         RegisterListener<Listeners.OnMapStart>(OnMapStart);
         RegisterListener<Listeners.OnMapEnd>(OnMapEnd);
-        RegisterListener<Listeners.OnClientConnected>(playerSlot => { playersNotified[playerSlot + 1] = false; });
-        RegisterListener<Listeners.OnClientDisconnectPost>(playerSlot => { playersNotified[playerSlot + 1] = false; });
-            
-        updateCheck = AddTimer(Configuration.config.UpdateCheckInterval, CheckServerForUpdate, TimerFlags.REPEAT);
-
-        if (sv_hibernate_when_empty.GetPrimitiveValue<bool>())
+        RegisterListener<Listeners.OnClientConnected>(playerSlot => { PlayersNotified[playerSlot + 1] = false; });
+        RegisterListener<Listeners.OnClientDisconnectPost>(playerSlot => { PlayersNotified[playerSlot + 1] = false; });
+        
+        _updateCheck = AddTimer(Configuration.Config.UpdateCheckInterval, CheckServerForUpdate, TimerFlags.REPEAT);
+        
+        var svHibernateWhenEmpty = ConVar.Find("sv_hibernate_when_empty");
+        
+        if (svHibernateWhenEmpty != null && svHibernateWhenEmpty.GetPrimitiveValue<bool>())
         {
             ConsoleLog("'sv_hibernate_when_empty' is enabled. This plugin might not work as expected.", ConsoleColor.Yellow);
         }
@@ -50,12 +50,22 @@ public partial class CS2AutoUpdater : BasePlugin
     [GameEventHandler]
     private static HookResult OnPlayerSpawn(EventPlayerSpawn @event, GameEventInfo info)
     {
-        if (!updateAvailable) return HookResult.Continue;
+        if (!_updateAvailable)
+        {
+            return HookResult.Continue;
+        }
         
-        CCSPlayerController player = @event.Userid;
-        
-        if (!player.IsValid || player.IsBot || player.TeamNum < (byte)CsTeam.Spectator) return HookResult.Continue;
-        if (playersNotified[player.Index]) return HookResult.Continue;
+        var player = @event.Userid;
+
+        if (!player.IsValid || player.IsBot || (CsTeam)player.TeamNum == CsTeam.None)
+        {
+            return HookResult.Continue;
+        }
+
+        if (PlayersNotified[player.Index])
+        {
+            return HookResult.Continue;
+        }
         
         NotifyPlayer(player);
         
@@ -65,8 +75,11 @@ public partial class CS2AutoUpdater : BasePlugin
     private async void CheckServerForUpdate()
     {
         try
-        { 
-            if (!await IsUpdateAvailable()) return;
+        {
+            if (!await IsUpdateAvailable())
+            {
+                return;
+            }
         } 
         catch (Exception ex)
         {
@@ -74,35 +87,44 @@ public partial class CS2AutoUpdater : BasePlugin
             return;
         }
         
-        updateCheck?.Kill();
+        _updateCheck?.Kill();
         
-        updateAvailable = true;
+        _updateAvailable = true;
         
-        updateFoundTime = Server.CurrentTime;
+        _updateFoundTime = Server.CurrentTime;
         
-        List<CCSPlayerController> players = GetCurrentPlayers();
+        var players = GetCurrentPlayers();
         
-        if (players.Count <= Configuration.config.MinimumPlayersBeforeInstantRestart)
+        if (players.Count <= Configuration.Config.MinimumPlayersBeforeInstantRestart)
         {
             PrepareServerShutdown();
             return;
         }
 
-        if (!isMapLoading) foreach (var player in players) NotifyPlayer(player);
+        if (!_isMapLoading)
+        {
+            foreach (var player in players)
+            {
+                NotifyPlayer(player);
+            }
+        }
 
-        AddTimer(Configuration.config.RestartDelay, PrepareServerShutdown);
+        AddTimer(Configuration.Config.RestartDelay, PrepareServerShutdown);
     }
 
     private static void NotifyPlayer(CCSPlayerController player)
     {
-        int remainingTime = Configuration.config.RestartDelay - (int)(Server.CurrentTime - updateFoundTime);
+        var remainingTime = Configuration.Config.RestartDelay - (int)(Server.CurrentTime - _updateFoundTime);
+
+        if (remainingTime < 0)
+        {
+            remainingTime = 1;
+        }
         
-        if (remainingTime < 0) remainingTime = 1;
+        var timeToRestart = remainingTime >= 60 ? $"{remainingTime / 60} minute{(remainingTime >= 120 ? "s" : "")}" : $"{remainingTime} second{(remainingTime > 1 ? "s" : "")}";
+        player.PrintToChat($" {Configuration.Config.ChatTag} New Counter-Strike 2 update released (Version: {_requiredVersion}) the server will restart in {timeToRestart}");
         
-        string timeToRestart = remainingTime >= 60 ? $"{remainingTime / 60} minute{(remainingTime >= 120 ? "s" : "")}" : $"{remainingTime} second{(remainingTime > 1 ? "s" : "")}";
-        player.PrintToChat($" {Configuration.config.ChatTag} New Counter-Strike 2 update released (Version: {requiredVersion}) the server will restart in {timeToRestart}");
-        
-        playersNotified[player.Index] = true;
+        PlayersNotified[player.Index] = true;
     }
 
     private void OnGameServerSteamAPIActivated()
@@ -112,17 +134,17 @@ public partial class CS2AutoUpdater : BasePlugin
         
     private static void OnMapStart(string mapName)
     {
-        isMapLoading = false;
+        _isMapLoading = false;
     }
         
     private static void OnMapEnd()
     {
-        isMapLoading = true;
+        _isMapLoading = true;
     }
 
     private async Task<bool> IsUpdateAvailable()
     {
-        string steamInfPatchVersion = GetSteamInfPatchVersion();
+        var steamInfPatchVersion = GetSteamInfPatchVersion();
         
         if (string.IsNullOrEmpty(steamInfPatchVersion))
         {
@@ -133,8 +155,8 @@ public partial class CS2AutoUpdater : BasePlugin
         
         try
         {
-            using HttpClient httpClient = new HttpClient();
-            HttpResponseMessage response = await httpClient.GetAsync(steamApiEndpoint.Replace("{steamInfPatchVersion}", steamInfPatchVersion));
+            using var httpClient = new HttpClient();
+            var response = await httpClient.GetAsync(SteamApiEndpoint.Replace("{steamInfPatchVersion}", steamInfPatchVersion));
             
             if (response.IsSuccessStatusCode)
             {
@@ -142,8 +164,8 @@ public partial class CS2AutoUpdater : BasePlugin
                 
                 if (upToDateObject.Response is { Success: true, UpToDate: false })
                 {
-                    requiredVersion = upToDateObject.Response.RequiredVersion!;
-                    ConsoleLog($"New Counter-Strike 2 update released (Version: {requiredVersion}, Current: {steamInfPatchVersion})");
+                    _requiredVersion = upToDateObject.Response.RequiredVersion!;
+                    ConsoleLog($"New Counter-Strike 2 update released (Version: {_requiredVersion}, Current: {steamInfPatchVersion})");
                     return true;
                 }
             }
@@ -162,7 +184,7 @@ public partial class CS2AutoUpdater : BasePlugin
 
     private void PrepareServerShutdown()
     {
-        List<CCSPlayerController> players = GetCurrentPlayers();
+        var players = GetCurrentPlayers();
         
         foreach (var player in players)
         {
@@ -171,23 +193,23 @@ public partial class CS2AutoUpdater : BasePlugin
                 case PlayerConnectedState.PlayerConnected:
                 case PlayerConnectedState.PlayerConnecting:
                 case PlayerConnectedState.PlayerReconnecting:
-                    Server.ExecuteCommand($"kickid {player.UserId} Due to the game update (Version: {requiredVersion}), the server is now restarting.");
+                    Server.ExecuteCommand($"kickid {player.UserId} Due to the game update (Version: {_requiredVersion}), the server is now restarting.");
                     break;
             }
         }
         
-        AddTimer(Configuration.config.ShutdownDelay, ShutdownServer);
+        AddTimer(Configuration.Config.ShutdownDelay, ShutdownServer);
     }
 
     private string GetSteamInfPatchVersion()
     {
-        string steamInfPath = Path.Combine(Server.GameDirectory, "csgo", "steam.inf");
+        var steamInfPath = Path.Combine(Server.GameDirectory, "csgo", "steam.inf");
         
         if (File.Exists(steamInfPath))
         {
             try
             {
-                Match match = PatchVersion().Match(File.ReadAllText(steamInfPath));
+                var match = PatchVersion().Match(File.ReadAllText(steamInfPath));
                 
                 if (match.Success) return match.Groups[1].Value;
                 {
@@ -214,8 +236,8 @@ public partial class CS2AutoUpdater : BasePlugin
         
     private void ConsoleLog(string message, ConsoleColor color = ConsoleColor.Green)
     {
-        string path = Path.Combine(ModuleDirectory, "logs.txt");
-        string log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{ModuleName}] {message}";
+        var path = Path.Combine(ModuleDirectory, "logs.txt");
+        var log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{ModuleName}] {message}";
         
         Console.ForegroundColor = color;
         Console.WriteLine(log);
@@ -223,7 +245,7 @@ public partial class CS2AutoUpdater : BasePlugin
         
         try
         {
-            using StreamWriter file = new StreamWriter(path, true);
+            using var file = new StreamWriter(path, true);
             file.WriteLine(log);
         }
         catch (Exception ex)
@@ -236,7 +258,7 @@ public partial class CS2AutoUpdater : BasePlugin
         
     private void ShutdownServer()
     {
-        ConsoleLog($"Restarting the server due to the new game update. (Version: {requiredVersion})");
+        ConsoleLog($"Restarting the server due to the new game update. (Version: {_requiredVersion})");
         Server.ExecuteCommand("quit");
     }
 
