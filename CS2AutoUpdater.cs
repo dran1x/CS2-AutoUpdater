@@ -16,7 +16,7 @@ public partial class CS2AutoUpdater : BasePlugin
     public override string ModuleName => "AutoUpdater";
     public override string ModuleAuthor => "DRANIX";
     public override string ModuleDescription => "Auto Updater for Counter-Strike 2.";
-    public override string ModuleVersion => "1.0.3";
+    public override string ModuleVersion => "1.0.4";
     private const string steamApiEndpoint = "http://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={steamInfPatchVersion}";
     private static CounterStrikeSharp.API.Modules.Timers.Timer updateCheck = null!;
     private static readonly bool[] playersNotified = new bool[65];
