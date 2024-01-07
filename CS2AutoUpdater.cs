@@ -27,21 +27,24 @@ namespace CS2AutoUpdater
 
         public override void Load(bool hotReload)
         {
-            Configuration.LoadConfig(this.ModuleDirectory);
+            Configuration.LoadConfig(ModuleDirectory);
             
             RegisterEventHandler<EventPlayerSpawn>(OnPlayerSpawn);
             
             ConVar sv_hibernate_when_empty = ConVar.Find("sv_hibernate_when_empty")!;
             
-            this.RegisterListener<Listeners.OnGameServerSteamAPIActivated>(OnGameServerSteamAPIActivated);
-            this.RegisterListener<Listeners.OnMapStart>(OnMapStart);
-            this.RegisterListener<Listeners.OnMapEnd>(OnMapEnd);
-            this.RegisterListener<Listeners.OnClientConnected>(playerSlot => { playersNotified[playerSlot + 1] = false; });
-            this.RegisterListener<Listeners.OnClientDisconnectPost>(playerSlot => { playersNotified[playerSlot + 1] = false; });
+            RegisterListener<Listeners.OnGameServerSteamAPIActivated>(OnGameServerSteamAPIActivated);
+            RegisterListener<Listeners.OnMapStart>(OnMapStart);
+            RegisterListener<Listeners.OnMapEnd>(OnMapEnd);
+            RegisterListener<Listeners.OnClientConnected>(playerSlot => { playersNotified[playerSlot + 1] = false; });
+            RegisterListener<Listeners.OnClientDisconnectPost>(playerSlot => { playersNotified[playerSlot + 1] = false; });
             
             updateCheck = AddTimer(Configuration.config.UpdateCheckInterval, CheckServerForUpdate, TimerFlags.REPEAT);
-            
-            if (sv_hibernate_when_empty.GetPrimitiveValue<bool>()) ConsoleLog("'sv_hibernate_when_empty' is enabled. This plugin might not work as expected.", ConsoleColor.Yellow);
+
+            if (sv_hibernate_when_empty.GetPrimitiveValue<bool>())
+            {
+                ConsoleLog("'sv_hibernate_when_empty' is enabled. This plugin might not work as expected.", ConsoleColor.Yellow);
+            }
         }
         
         [GameEventHandler]
@@ -124,7 +127,7 @@ namespace CS2AutoUpdater
             if (string.IsNullOrEmpty(steamInfPatchVersion))
             {
                 ConsoleLog("Unable to get the current patch version of Counter-Strike 2. The server will not be checked for updates.", ConsoleColor.Red);
-                Server.ExecuteCommand($"css_plugins stop {this.ModuleName}");
+                Server.ExecuteCommand($"css_plugins stop {ModuleName}");
                 return false;
             }
 
@@ -173,7 +176,7 @@ namespace CS2AutoUpdater
                 }
             }
 
-            AddTimer((float)Configuration.config.ShutdownDelay, ShutdownServer);
+            AddTimer(Configuration.config.ShutdownDelay, ShutdownServer);
         }
 
         private string GetSteamInfPatchVersion()
@@ -211,8 +214,8 @@ namespace CS2AutoUpdater
         
         private void ConsoleLog(string message, ConsoleColor color = ConsoleColor.Green)
         {
-            string path = Path.Combine(this.ModuleDirectory, "logs.txt");
-            string log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{this.ModuleName}] {message}";
+            string path = Path.Combine(ModuleDirectory, "logs.txt");
+            string log = $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] [{ModuleName}] {message}";
 
             Console.ForegroundColor = color;
             Console.WriteLine(log);
@@ -226,7 +229,7 @@ namespace CS2AutoUpdater
             catch (Exception ex)
             {
                 Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine($"[{this.ModuleName}]Error writing to log file: {ex.Message}");
+                Console.WriteLine($"[{ModuleName}]Error writing to log file: {ex.Message}");
                 Console.ResetColor();
             }
         }
