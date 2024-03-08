@@ -6,18 +6,18 @@
 # Features
  - [x] Automatically checks the current game version of Counter-Strike 2 by querying Steam's API.
  - [x] Notifies players about the upcoming server restart.
- - [ ] Translations. (Waiting for CounterStrikeSharp support)
+ - [x] Translations.
 
 # Installation
 
  ### Requirements
 
   - [Metamod:Source](https://www.sourcemm.net/downloads.php/?branch=master) (Dev Build)
-  - [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp) (Commit [12a654f](https://github.com/roflmuffin/CounterStrikeSharp/actions/runs/6782595525) or higher)
+  - [CounterStrikeSharp](https://github.com/roflmuffin/CounterStrikeSharp) (Version `178` or higher)
 
   Download the latest release of CS2-AutoUpdater from the [GitHub Release Page](https://github.com/dran1x/CS2-AutoUpdater/releases).
 
-  Extract the contents of the archive into your `counterstrikesharp/plugins` folder.
+  Extract the contents of the archive into your `counterstrikesharp` folder.
 
  ### Build Instructions
 
@@ -32,11 +32,12 @@
 
 # Confiuration
  ```json
- {
-   "UpdateCheckInterval": 300,
-   "RestartDelay": 120,
-   "ShutdownDelay": 2,
-   "MinimumPlayersBeforeInstantRestart": 1,
-   "ChatTag": "\u0004[AutoUpdater]\u0001"
- }
+{
+  "ConfigVersion": 2,
+  "UpdateCheckInterval": 180,
+  "ShutdownDelay": 120,
+  "MinPlayersInstantShutdown": 1,
+  "MinPlayerPercentageShutdownAllowed": 0.6,
+  "ShutdownOnMapChangeIfPendingUpdate": true
+}
  ```
