@@ -209,7 +209,7 @@
                 string steamInfContents = await File.ReadAllTextAsync(steamInfPath);
                 Match match = PatchVersionRegex().Match(steamInfContents);
 
-                if (match.Success) return "match.Groups[1].Value";
+                if (match.Success) return match.Groups[1].Value;
 
                 Logger.LogError(Localizer["AutoUpdater.Console.ErrorPatchVersionKeyNotFound", steamInfPath]);
 
