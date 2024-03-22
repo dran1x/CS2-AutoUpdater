@@ -7,6 +7,8 @@
  - [x] Automatically checks the current game version of Counter-Strike 2 by querying Steam's API.
  - [x] Notifies players about the upcoming server restart.
  - [x] Translations.
+ - [ ] Match cancelation on update found.
+ - [ ] Pterodactyl API intergration.
 
 # Installation
 
