@@ -1,0 +1,18 @@
+{
+  "AutoUpdater.Chat.Prefix": "[{green}AutoUpdater{default}]",
+  "AutoUpdater.Chat.NewUpdateReleased": "Nova atualização do Counter-Strike 2 lançada (Versão: {0}). O servidor será reiniciado em {1}",
+  "AutoUpdater.Chat.PluralSuffix": "s",
+  "AutoUpdater.Chat.MinuteLabel": "minuto",
+  "AutoUpdater.Chat.SecondLabel": "segundo",
+  "AutoUpdater.Console.NewUpdateReleased": "Nova atualização do Counter-Strike 2 lançada (Versão: {0}). O servidor está se preparando para desligar.",
+  "AutoUpdater.Console.ConfigVersionMismatch": "Incompatibilidade de versão de configuração (Esperado: {0} | Atual: {1})",
+  "AutoUpdater.Console.UpdateCheckInitiated": "API Steam ativada. Verificando atualizações...",
+  "AutoUpdater.Console.HibernateWarning": "A ConVar 'sv_hibernate_when_empty' está ativada. Este plugin pode não funcionar como esperado.",
+  "AutoUpdater.Console.ErrorUpdateCheck": "Ocorreu um erro ao verificar o servidor para atualizações: {0}",
+  "AutoUpdater.Console.ErrorPatchVersionNull": "A versão atual do patch do Counter-Strike 2 não pôde ser recuperada. Este servidor não será verificado para atualizações.",
+  "AutoUpdater.Console.WarningSteamRequestFailed": "A solicitação HTTP Steam falhou com o código de status: {0}",
+  "AutoUpdater.Console.ErrorSteamInfNotFound": "O arquivo 'steam.inf' não foi encontrado no diretório raiz do Counter-Strike 2. Caminho: \"{0}\"",
+  "AutoUpdater.Console.ErrorPatchVersionKeyNotFound": "A chave 'PatchVersion' não pôde ser localizada no arquivo steam.inf.",
+  "AutoUpdater.Console.ErrorReadingSteamInf": "Ocorreu um erro ao ler o arquivo 'steam.inf': {0}",
+  "AutoUpdater.Console.ServerShutdownInitiated": "Desligando o servidor devido à nova atualização do jogo. (Versão: {0})"
+}
