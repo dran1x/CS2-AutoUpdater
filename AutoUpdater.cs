@@ -16,7 +16,7 @@
         public override string ModuleName => "AutoUpdater";
         public override string ModuleAuthor => "dranix";
         public override string ModuleDescription => "Auto Updater for Counter-Strike 2.";
-        public override string ModuleVersion => "1.0.4";
+        public override string ModuleVersion => "1.0.5";
 
         private const string SteamApiEndpoint =
             "https://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={0}";
