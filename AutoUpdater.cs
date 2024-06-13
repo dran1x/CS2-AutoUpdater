@@ -16,7 +16,7 @@
         public override string ModuleName => "AutoUpdater";
         public override string ModuleAuthor => "dranix";
         public override string ModuleDescription => "Auto Updater for Counter-Strike 2.";
-        public override string ModuleVersion => "1.0.4";
+        public override string ModuleVersion => "1.0.5";
 
         private const string SteamApiEndpoint =
             "https://api.steampowered.com/ISteamApps/UpToDateCheck/v0001/?appid=730&version={0}";
@@ -76,8 +76,8 @@
 
         private static void OnClientConnected(int playerSlot)
         {
-            CCSPlayerController player = Utilities.GetPlayerFromSlot(playerSlot);
-            if (!player.IsValid || player.IsBot || player.IsHLTV) return;
+            CCSPlayerController? player = Utilities.GetPlayerFromSlot(playerSlot);
+            if (player == null || (player?.IsBot ?? false) || (player?.IsHLTV ?? false)) return;
 
             PlayersNotified.Add(playerSlot, false);
         }
@@ -139,9 +139,9 @@
         {
             if (!UpdateAvailable) return HookResult.Continue;
 
-            CCSPlayerController player = @event.Userid;
+            CCSPlayerController? player = @event.Userid;
 
-            if (!player.IsValid || player.IsBot || player.TeamNum <= (byte)CsTeam.Spectator) return HookResult.Continue;
+            if (player == null || player!.IsBot || player.TeamNum <= (byte)CsTeam.Spectator) return HookResult.Continue;
             if (PlayersNotified.TryGetValue(player.Slot, out bool notified) && notified) return HookResult.Continue;
 
             PlayersNotified[player.Slot] = true;
