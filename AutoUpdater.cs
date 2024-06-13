@@ -77,7 +77,7 @@
         private static void OnClientConnected(int playerSlot)
         {
             CCSPlayerController? player = Utilities.GetPlayerFromSlot(playerSlot);
-            if (player == null || player.IsBot || player.IsHLTV) return;
+            if (player == null || (player?.IsBot ?? false) || (player?.IsHLTV ?? false)) return;
 
             PlayersNotified.Add(playerSlot, false);
         }
@@ -141,7 +141,7 @@
 
             CCSPlayerController? player = @event.Userid;
 
-            if (player == null || player.IsBot || player.TeamNum <= (byte)CsTeam.Spectator) return HookResult.Continue;
+            if (player == null || player!.IsBot || player.TeamNum <= (byte)CsTeam.Spectator) return HookResult.Continue;
             if (PlayersNotified.TryGetValue(player.Slot, out bool notified) && notified) return HookResult.Continue;
 
             PlayersNotified[player.Slot] = true;
